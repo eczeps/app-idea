@@ -1,0 +1,317 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <script type="text/javascript">
+        window.addEventListener("load", windowLoadHandler, false);
+        var ingredientsArray;
+        var currentlyHighlighted;
+        var food;
+        var foodURLS = [];
+        var numFindMore = 0; //this is the number of times the find more button has been clicked
+        var j = 0; //this is the number of the image you're on - see where the images are created
+        var element;
+
+
+        function windowLoadHandler() {
+            app();
+        }
+
+
+        function app() {
+            var productSearchField = document.getElementById("productSearch");
+            var brandSearchField = document.getElementById("brandSearch");
+            getFoodName();
+
+
+            function getFoodName() {
+                //waits for the user to search for something
+                productSearchField.addEventListener("keypress", checkProductSearchForEnter, false);
+                brandSearchField.addEventListener("keypress", checkBrandSearchForEnter, false);
+            }
+
+            function checkProductSearchForEnter(evt) {
+                var e = evt || window.event;
+                var charCode = e.which || e.keyCode;
+                if(charCode == '13') {
+                    numFindMore = 0;
+                    document.getElementById('productSearch').blur();
+                    document.getElementById('brandSearch').focus();
+                    return false; //prevents default behavior, don't want enter key to actually be typed in the field.
+                }
+            }
+
+            function checkBrandSearchForEnter(evt) {
+                var e = evt || window.event;
+                var charCode = e.which || e.keyCode;
+                if(charCode == '13') {
+                    numFindMore = 0;
+                    //var productSearchTerm = productSearch.value;
+                    //var brandSearchTerm = brandSearch.value;
+                    var productSearchTerm = "oreo";
+                    var brandSearchTerm = "oreo";
+                    //clear anything that's already on the screen:
+                    clear();
+                    //ask the API for the food
+                    requestFood(productSearchTerm, brandSearchTerm);
+                    return false; //prevents default behavior, don't want enter key to actually be typed in the field.
+                }
+            }
+
+
+            function clear() {
+                //below removes the ingredients list
+                var el = document.getElementById('ingredientContainer');
+                while(el.firstChild) el.removeChild(el.firstChild);
+
+                //below removes any messages
+                error.innerHTML = "";
+
+                //below removes the images:
+                var el = document.getElementById('photos');
+                while(el.firstChild) el.removeChild(el.firstChild);
+            }
+
+            function requestFood(productSearchTerm, brandSearchTerm) {
+                var thing = new XMLHttpRequest();
+                var URL = "http://api.v3.factual.com/t/products-cpg-nutrition";
+                var PRODUCT = "\"" + productSearchTerm + "\"";
+                var BRAND = "\"" + brandSearchTerm + "\"";
+                var KEY = "cM4TguIUqv9vXGSQUSl9yfpW2aKd4lKWD0l56bEJ";
+                thing.open("GET", URL + "?q=" + PRODUCT + "&filters={\"brand\":" + BRAND + "}" + "&KEY=" + KEY, false);
+                thing.send(); //this sends the request in
+                food = JSON.parse(thing.responseText);
+                if(food.response.data.length === 0) {
+                    //if that food isn't in the API
+                    document.getElementById('error').innerHTML = "Sorry, that food isn't in our database.";
+                } else {
+                    makeFoodURLS(food);
+                    displayPictures(food);
+                }
+            }
+
+            function makeFoodURLS(food) {
+                for (var i = 0; i < food.response.data.length; i++){
+                    //find a way to do something when there arent any urls in image_urls -- it's not that the urls throw an error, it's that
+                    //they can never be loaded because they don't exist
+                    //console.log(food.response.data[i].image_urls);
+                    var imageURLS = food.response.data[i].image_urls;
+                    var img = new Image();
+                    img.urlIndex = 0;
+                    img.urls = imageURLS;
+                    img.onerror = function() {
+                        this.urlIndex++;
+                        if (this.urlIndex > this.urls.length-1) {
+                            //use placeholder
+                            console.log("setting default placeholder image");
+                            this.src = "http://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG";
+                            console.log(this.src);
+                            foodURLS.splice(i, 1, this.src);
+                            this.onerror = function() {
+                                console.log("shouldn't see this!");
+                            }
+                        }
+                        else {
+                            this.src = this.urls[this.urlIndex];
+                            console.log("next");
+                            console.log(foodURLS);
+                            //this should take out whatever had already been there for that image and put in the good src:
+                            foodURLS.splice(i, 1, this.src);
+                            //console.log(foodURLS);
+                        }
+                    }
+                    if (imageURLS) {
+                        img.src = imageURLS[0];
+                        foodURLS.push(img.src);
+                    }
+                    else{
+                        img.src = "http://upload.wikimedia.org/wikipedia/en/e/ed/Nyan_cat_250px_frame.PNG";
+                        console.log("CAT!");
+                        foodURLS.push(img.src);
+                    }
+                    //console.log("end" + img.src);
+                    //youre still pushing in a bad link
+                }
+                //console.log(foodURLS);
+            }
+
+
+            function displayPictures(food) {
+                clear();
+                //makes a back button
+                if(numFindMore > 0) {
+                    var div = document.getElementById('photos');
+                    var backButton = document.createElement('button');
+                    backButton.textContent = "Back";
+                    div.appendChild(backButton);
+                    backButton.addEventListener("mousedown", goBack, false);
+                }
+                var images = document.getElementsByTagName('img');
+                for(var i = 3 * numFindMore; i < 3 + 3 * numFindMore; i++) {
+                    if(i <= food.response.data.length) {
+                        var div = document.getElementById('photos');
+                        var img = document.createElement('img');
+                        var labelText = food.response.data[i].product_name;
+                        img.alt = labelText;
+                        img.src = foodURLS[i];
+                        //console.log(img.src);
+                        //this is where the error happens for the third image
+                        //this error calls the onerror function and gets its img src reset perfectly
+                        //but by now it's too late and it doesnt matter that this new img src is pushed into foodURls
+                        //this new url gets put in the end of foodURLS and the bad url is still in there as the third element ([2])
+                    } else {
+                        //if the search looped
+                        document.getElementById('error').innerHTML = "HAHAHAH THERES NO MORE LEFT WHEEEEEEEE";
+                    }
+                    //below find some way to keep their aspect ratios
+                    img.width = 300;
+                    img.height = 300;
+                    img.imgNumber = i;
+                    div.appendChild(img);
+                    img.addEventListener("mousedown", pictureClicked, false);
+                }
+                //below puts a find more button
+                var div = document.getElementById('photos');
+                var findMoreButton = document.createElement('button');
+                findMoreButton.textContent = "Find More";
+                div.appendChild(findMoreButton);
+                findMoreButton.addEventListener("mousedown", findMorePictures, false);
+            }
+
+            function pictureClicked(evt) {
+                var i = evt.currentTarget.imgNumber;
+                //console.log("Picture clicked " + i);
+                //i is which picture was clicked 
+                getIngredients(i);
+            }
+
+            function goBack(evt) {
+                //if the user wants to go back to the last page of results
+                clear();
+                numFindMore = numFindMore - 1;
+                displayPictures(food);
+            }
+
+            function findMorePictures(evt) {
+                clear();
+                //this is if the user wants more images than the ones already displayed   
+                numFindMore = numFindMore + 1;
+                displayPictures(food);
+            }
+
+            function getIngredients(i) {
+                //change from data[0] to whichever search result the user chooses
+                ingredientsArray = food.response.data[i].ingredients;
+                ingredientsArray.toString();
+                writeOutput(ingredientsArray);
+            }
+
+
+            function writeOutput(ingredientsArray) {
+                foodURLS = [];
+                clear();
+                for(var i = 0; i < ingredientsArray.length; i++) {
+                    //first search through the ingredients and either split things by {} or just omit whatever's in the brackets
+                    if(i !== 0) {
+                        //below is for punctuation and things that arent ingredients
+                        var nonInteractiveDiv = document.createElement("span");
+                        nonInteractiveDiv.style.background = "rgba(0, 100, 255, .3)";
+                        ingredientContainer.appendChild(nonInteractiveDiv);
+                        nonInteractiveDiv.innerHTML = ", ";
+                    }
+
+                    //below is for ingredients
+                    var interactiveDiv = document.createElement("span");
+                    interactiveDiv.id = "ingredient" + i;
+                    interactiveDiv.style.background = "rgba(0, 255, 100, .3)";
+                    ingredientContainer.appendChild(interactiveDiv);
+                    interactiveDiv.innerHTML = ingredientsArray[i];
+                    interactiveDiv.addEventListener("mousedown", mouseDownID, true);
+                }
+            }
+
+
+            function mouseDownID(evt) {
+                //this is for when the mouse is pressed over the interactive div
+                var interactiveDiv = evt.currentTarget;
+                if(currentlyHighlighted === undefined) {
+                    //if this is the first thing someone has clicked on
+                    interactiveDiv.style.background = "rgba(0, 255, 100, 1)";
+                } else if(currentlyHighlighted == interactiveDiv) {
+                    //if they click on the same thing twice
+
+                } else if(currentlyHighlighted != interactiveDiv) {
+                    //if they clicked on something and something else is currently highlighted
+                    interactiveDiv.style.background = "rgba(0, 255, 100, 1)";
+                    currentlyHighlighted.style.background = "rgba(0, 255, 100, .3)";
+                }
+
+                currentlyHighlighted = interactiveDiv;
+                var ingredient = currentlyHighlighted.innerHTML;
+                window.open("https://www.google.com/webhp?q=What+Is+" + ingredient);
+
+                var informationContainer = document.createElement("div");
+                document.getElementById('informationContainer').innerHTML = "HI!";
+            }
+        }
+    </script>
+
+    <title>Google Search</title>
+
+    <style type="text/css">
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            font-family: sans-serif;
+        }
+        
+        p {
+            color: #333333;
+            font-size: 14px;
+        }
+        
+        a {
+            color: #d15423;
+            text-decoration: none;
+        }
+        
+        #ingredientContainer {
+            background-color: #cccccc;
+            font-size: 14px;
+            font-family: sans-serif;
+        }
+        
+        #interactiveDiv {
+            display: inline-block;
+            float: left;
+        }
+        
+        #nonInteractiveDiv {
+            width: nIDwidth;
+            float: left;
+        }
+        
+        #informationContainer {
+            background-color: #d15423;
+        }
+    </style>
+</head>
+
+<body>
+    <div>Type your food here:</div>
+    <div>
+        <input type="search" id="productSearch" value="product" />
+        <input type="search" id="brandSearch" value="brand" />
+    </div>
+    <div id='error'></div>
+    <div id='photos'>
+    </div>
+    <div id="ingredientContainer">
+    </div>
+    <div id="informationContainer"</div>
+</body>
+
+</html>
