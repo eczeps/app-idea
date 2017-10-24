@@ -7,7 +7,7 @@
 
     <script type="text/javascript">
         window.addEventListener("load", windowLoadHandler, false);
-        var ingredientsArray;
+        var ingredientsArray; //an array that will hold the ingredients of the food the user chooses
         var currentlyHighlighted;
         var food;
         var foodURLS = [];
@@ -36,8 +36,9 @@
             function checkProductSearchForEnter(evt) {
                 var e = evt || window.event;
                 var charCode = e.which || e.keyCode;
-                if(charCode == '13') {
-                    numFindMore = 0;
+                if(charCode == '13') { 
+                //if the user pressed enter
+                    numFindMore = 0; //initialize how many times the find more button has been clicked
                     document.getElementById('productSearch').blur();
                     document.getElementById('brandSearch').focus();
                     return false; //prevents default behavior, don't want enter key to actually be typed in the field.
@@ -47,12 +48,11 @@
             function checkBrandSearchForEnter(evt) {
                 var e = evt || window.event;
                 var charCode = e.which || e.keyCode;
-                if(charCode == '13') {
-                    numFindMore = 0;
-                    //var productSearchTerm = productSearch.value;
-                    //var brandSearchTerm = brandSearch.value;
-                    var productSearchTerm = "oreo";
-                    var brandSearchTerm = "oreo";
+                if(charCode == '13') { 
+                //if the user pressed enter
+                    numFindMore = 0; //initialize how many times the find more button has been clicked
+                    var productSearchTerm = productSearch.value;
+                    var brandSearchTerm = brandSearch.value;
                     //clear anything that's already on the screen:
                     clear();
                     //ask the API for the food
